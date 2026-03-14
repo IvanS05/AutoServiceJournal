@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { addRecord, updateRecord } from '../database/database';
+import { useDetailViewModel } from '../viewmodels/detailViewModel';
 import { useTheme } from '../utils/theme';
 import { useTranslation } from 'react-i18next';
 
@@ -17,38 +17,25 @@ const DetailScreen = ({ route, navigation }) => {
   const { record } = route.params || {};
   const isEditing = !!record;
 
-  const [workType, setWorkType] = useState(record?.workType || '');
-  const [mileage, setMileage] = useState(record?.mileage?.toString() || '');
-  const [date, setDate] = useState(record?.date || '');
+  const {
+    workType,
+    setWorkType,
+    mileage,
+    setMileage,
+    date,
+    setDate,
+    loading,
+    error,
+    save,
+  } = useDetailViewModel(record);
 
   const { theme } = useTheme();
   const { t } = useTranslation();
 
   const handleSave = async () => {
-    if (!workType.trim() || !mileage.trim() || !date.trim()) {
-      Alert.alert(t('error'), t('fillAllFields'));
-      return;
-    }
-
-    const mileageNum = parseInt(mileage);
-    if (isNaN(mileageNum)) {
-      Alert.alert(t('error'), t('mileageMustBeNumber'));
-      return;
-    }
-
-    const recordData = {
-      workType: workType.trim(),
-      mileage: mileageNum,
-      date: date.trim(),
-    };
-
-    if (isEditing) {
-      await updateRecord({ ...recordData, id: record.id });
-    } else {
-      await addRecord(recordData);
-    }
-
-    navigation.goBack();
+    const ok = await save();
+    if (ok) navigation.goBack();
+    else if (error) Alert.alert(t('error'), t(error) || error);
   };
 
   return (

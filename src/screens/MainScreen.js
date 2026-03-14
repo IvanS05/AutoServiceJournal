@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,27 +8,22 @@ import {
   Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { getRecords, deleteRecord } from '../database/database';
+import { useMainViewModel } from '../viewmodels/mainViewModel';
 import { useTheme } from '../utils/theme';
 import { useTranslation } from 'react-i18next';
 
 const MainScreen = ({ navigation }) => {
-  const [records, setRecords] = useState([]);
-  const { theme } = useTheme();
-  const { t } = useTranslation();
+  const { theme } = useTheme(); // theme содержит все цвета для текущей темы
+  const { t } = useTranslation(); // t('ключ') возвращает перевод на текущем языке
+  const { records, loadRecords, handleDelete } = useMainViewModel(); // Вызывает кастомный хук useMainViewModel()
 
   useEffect(() => {
     loadRecords();
-    const unsubscribe = navigation.addListener('focus', loadRecords);
+    const unsubscribe = navigation.addListener('focus', loadRecords); // При каждом focus будет вызываться loadRecords()
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, loadRecords]);
 
-  const loadRecords = async () => {
-    const data = await getRecords();
-    setRecords(data);
-  };
-
-  const handleDelete = (id) => {
+  const confirmDelete = (id) => {
     Alert.alert(
       t('deleteTitle'),
       t('deleteConfirm'),
@@ -36,20 +31,17 @@ const MainScreen = ({ navigation }) => {
         { text: t('cancel'), style: 'cancel' },
         {
           text: t('delete'),
-          onPress: () => {
-            deleteRecord(id);
-            loadRecords();
-          },
+          onPress: () => handleDelete(id),
           style: 'destructive',
         },
       ]
     );
   };
-
+// record: item Объект с данными, который передается на тот экран
   const renderRecord = ({ item }) => (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: theme.cardColor }]}
-      onPress={() => navigation.navigate('Detail', { record: item })}>
+      onPress={() => navigation.navigate('Detail', { record: item })}> 
       <View style={styles.cardContent}>
         <Text style={[styles.workType, { color: theme.textColor }]}>
           {item.workType}
@@ -62,7 +54,7 @@ const MainScreen = ({ navigation }) => {
         </Text>
       </View>
       <TouchableOpacity
-        onPress={() => handleDelete(item.id)}
+        onPress={() => confirmDelete(item.id)}
         style={styles.deleteButton}>
         <Icon name="delete" size={24} color="#e74c3c" />
       </TouchableOpacity>
@@ -72,12 +64,17 @@ const MainScreen = ({ navigation }) => {
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
       <View style={[styles.header, { borderBottomColor: theme.secondaryColor }]}>
-        <Text style={[styles.headerTitle, { color: theme.textColor }]}>
+        <Text style={[styles.headerTitle, { color: theme.textColor }]}> 
           {t('serviceJournal')}
         </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-          <Icon name="settings" size={28} color={theme.primaryColor} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity style={{ marginRight: 12 }} onPress={() => navigation.navigate('VIN')}>
+            <Icon name="qr_code" size={26} color={theme.primaryColor} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+            <Icon name="settings" size={28} color={theme.primaryColor} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {records.length === 0 ? (

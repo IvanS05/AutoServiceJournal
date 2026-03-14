@@ -3,7 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import * as RNLocalize from 'react-native-localize';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const resources = {
+const resources = { // словари
   en: {
     translation: {
       serviceJournal: 'Service Journal',
@@ -18,6 +18,10 @@ const resources = {
       cancel: 'Cancel',
       deleteTitle: 'Delete Record',
       deleteConfirm: 'Are you sure?',
+      vinLookup: 'VIN Lookup',
+      enterVin: 'Enter VIN',
+      showAllFields: 'Show all fields',
+      showFiltered: 'Show filtered',
       settings: 'Settings',
       appearance: 'Appearance',
       darkTheme: 'Dark Theme',
@@ -42,6 +46,10 @@ const resources = {
       cancel: 'Отмена',
       deleteTitle: 'Удаление',
       deleteConfirm: 'Вы уверены?',
+      vinLookup: 'Поиск по VIN',
+      enterVin: 'Введите VIN',
+      showAllFields: 'Показать все поля',
+      showFiltered: 'Показать важные',
       settings: 'Настройки',
       appearance: 'Внешний вид',
       darkTheme: 'Тёмная тема',

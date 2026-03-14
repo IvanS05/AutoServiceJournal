@@ -9,10 +9,10 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useTheme } from '../utils/theme';
 import { useTranslation } from 'react-i18next';
-import { saveLanguage } from '../utils/i18n'; // Добавь этот импорт
+import { saveLanguage } from '../utils/i18n'; 
 
 const SettingsScreen = ({ navigation }) => {
-  const { theme, toggleTheme, isDarkMode } = useTheme();
+  const { theme, toggleTheme, isDarkMode } = useTheme(); // ПРИНОСИТ ТЕМУ
   const { t, i18n } = useTranslation();
   const currentLanguage = i18n.language;
 

@@ -20,6 +20,15 @@ export const initDatabase = async () => {
       );
     `);
 
+    // Таблица для кеширования ответов API
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS api_cache (
+        key TEXT PRIMARY KEY,
+        response TEXT,
+        timestamp INTEGER
+      );
+    `);
+
     console.log('Database initialized');
   } catch (error) {
     console.error('Database error:', error);
@@ -34,6 +43,33 @@ export const getRecords = async () => {
   } catch (error) {
     console.error('Error getting records:', error);
     return [];
+  }
+};
+
+// Получить кеш по ключу
+export const getCache = async (key) => {
+  try {
+    const result = await db.execute('SELECT response FROM api_cache WHERE key = ?', [key]); // Ищем запись, где поле key равно переданному значению
+    if (result.rows && result.rows.length > 0) {
+      return result.rows[0].response; // возвращаем данные из поля response
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting cache:', error);
+    return null;
+  }
+};
+
+// Сохранить/обновить кеш
+export const setCache = async (key, response) => {
+  try {
+    const timestamp = Date.now();
+    await db.execute(
+      'INSERT OR REPLACE INTO api_cache (key, response, timestamp) VALUES (?, ?, ?)',
+      [key, response, timestamp]
+    );
+  } catch (error) {
+    console.error('Error setting cache:', error);
   }
 };
 

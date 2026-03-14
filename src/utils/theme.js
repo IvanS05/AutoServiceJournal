@@ -8,13 +8,13 @@ export const ThemeProvider = ({ children }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    loadTheme();
+    loadTheme(); // Вызывается 1 раз при запуске
   }, []);
 
   const loadTheme = async () => {
     try {
       const saved = await AsyncStorage.getItem('theme');
-      if (saved !== null) setIsDarkMode(saved === 'dark');
+      if (saved !== null) setIsDarkMode(saved === 'dark'); // 'dark' → saved === 'dark' → true/ 'light' → saved === 'dark' → false
     } catch (error) {
       console.log('Error loading theme:', error);
     }
@@ -22,7 +22,7 @@ export const ThemeProvider = ({ children }) => {
 
   const toggleTheme = async () => {
     const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
+    setIsDarkMode(newTheme); // // 2. Меняем состояние (сразу видно на экране)
     await AsyncStorage.setItem('theme', newTheme ? 'dark' : 'light');
   };
 
