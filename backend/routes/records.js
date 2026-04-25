@@ -9,6 +9,7 @@ const imagekit = new ImageKit({
   publicKey:   process.env.IMAGEKIT_PUBLIC_KEY,
   privateKey:  process.env.IMAGEKIT_PRIVATE_KEY,
   urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
+  timeout:     60000, // 60 с на загрузку в ImageKit
 });
 
 // Загрузить изображение в ImageKit из base64-строки

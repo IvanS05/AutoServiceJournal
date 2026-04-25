@@ -12,7 +12,7 @@ import { BACKEND_URL } from '../constants/apiConfig';
 
 const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
-  timeout: 30000,            // 30 с — base64 может быть крупным
+  timeout: 90000,            // 90 с — запас для загрузки фото в ImageKit
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
 });
