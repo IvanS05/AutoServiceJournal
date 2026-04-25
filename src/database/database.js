@@ -1,130 +1,144 @@
-import { open } from '@op-engineering/op-sqlite';
+/**
+ * database.js — слой данных.
+ *
+ * Записи хранятся в MySQL через REST API бэкенда.
+ * Фото передаётся как base64 в JSON — надёжнее FormData на Android.
+ * VIN-кэш хранится в AsyncStorage.
+ */
 
-// Открываем БД
-let db;
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BACKEND_URL } from '../constants/apiConfig';
+
+const api = axios.create({
+  baseURL: `${BACKEND_URL}/api`,
+  timeout: 30000,            // 30 с — base64 может быть крупным
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
+});
+
+// ─── Records ─────────────────────────────────────────────────────────────────
 
 export const initDatabase = async () => {
   try {
-    db = await open({
-      name: 'autoservice.db',
-      location: 'default',
-    });
-
-    // Создаем таблицу
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS records (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        workType TEXT NOT NULL,
-        mileage INTEGER NOT NULL,
-        date TEXT NOT NULL
-      );
-    `);
-
-    // Таблица для кеширования ответов API
-    await db.execute(`
-      CREATE TABLE IF NOT EXISTS api_cache (
-        key TEXT PRIMARY KEY,
-        response TEXT,
-        timestamp INTEGER
-      );
-    `);
-
-    console.log('Database initialized');
-  } catch (error) {
-    console.error('Database error:', error);
+    await api.get('/health');
+    console.log('Backend connected');
+  } catch (e) {
+    console.warn('Backend unavailable:', e.message);
   }
 };
 
-// Получить все записи
+export const insertSampleData = async () => {};
+
 export const getRecords = async () => {
   try {
-    const result = await db.execute('SELECT * FROM records ORDER BY date DESC');
-    return result.rows || [];
-  } catch (error) {
-    console.error('Error getting records:', error);
+    const { data } = await api.get('/records');
+    return (data || []).map(normalizeRecord);
+  } catch (e) {
+    console.error('getRecords error:', e.message);
     return [];
   }
 };
 
-// Получить кеш по ключу
-export const getCache = async (key) => {
+export const getRecordById = async (id) => {
   try {
-    const result = await db.execute('SELECT response FROM api_cache WHERE key = ?', [key]); // Ищем запись, где поле key равно переданному значению
-    if (result.rows && result.rows.length > 0) {
-      return result.rows[0].response; // возвращаем данные из поля response
-    }
-    return null;
-  } catch (error) {
-    console.error('Error getting cache:', error);
+    const { data } = await api.get(`/records/${id}`);
+    return data ? normalizeRecord(data) : null;
+  } catch (e) {
+    console.error('getRecordById error:', e.message);
     return null;
   }
 };
 
-// Сохранить/обновить кеш
-export const setCache = async (key, response) => {
-  try {
-    const timestamp = Date.now();
-    await db.execute(
-      'INSERT OR REPLACE INTO api_cache (key, response, timestamp) VALUES (?, ?, ?)',
-      [key, response, timestamp]
-    );
-  } catch (error) {
-    console.error('Error setting cache:', error);
-  }
+/**
+ * Добавить запись.
+ * @param {object} record    - { workType, mileage, date, reminder_time }
+ * @param {object} [imageFile] - asset из react-native-image-picker (с base64)
+ */
+export const addRecord = async (record, imageFile = null) => {
+  const { data } = await api.post('/records', {
+    workType:      record.workType,
+    mileage:       Number(record.mileage),
+    date:          record.date,
+    reminder_time: record.reminder_time || null,
+    ...buildImagePayload(imageFile),
+  });
+  return normalizeRecord(data);
 };
 
-// Добавить запись
-export const addRecord = async (record) => {
-  try {
-    await db.execute(
-      'INSERT INTO records (workType, mileage, date) VALUES (?, ?, ?)',
-      [record.workType, record.mileage, record.date]
-    );
-  } catch (error) {
-    console.error('Error adding record:', error);
-  }
+/**
+ * Обновить запись.
+ * @param {object}  record        - { id, workType, mileage, date, reminder_time }
+ * @param {object}  [imageFile]   - новый файл (если null — зависит от imageCleared)
+ * @param {boolean} [imageCleared]- true = пользователь явно удалил фото
+ */
+export const updateRecord = async (record, imageFile = null, imageCleared = false) => {
+  const { data } = await api.put(`/records/${record.id}`, {
+    workType:      record.workType,
+    mileage:       Number(record.mileage),
+    date:          record.date,
+    reminder_time: record.reminder_time || null,
+    // keep_image=false если: загружен новый файл ИЛИ пользователь явно удалил
+    keep_image:    !imageFile && !imageCleared,
+    ...buildImagePayload(imageFile),
+  });
+  return normalizeRecord(data);
 };
 
-// Обновить запись
-export const updateRecord = async (record) => {
-  try {
-    await db.execute(
-      'UPDATE records SET workType = ?, mileage = ?, date = ? WHERE id = ?',
-      [record.workType, record.mileage, record.date, record.id]
-    );
-  } catch (error) {
-    console.error('Error updating record:', error);
-  }
-};
-
-// Удалить запись
 export const deleteRecord = async (id) => {
   try {
-    await db.execute('DELETE FROM records WHERE id = ?', [id]);
-  } catch (error) {
-    console.error('Error deleting record:', error);
+    await api.delete(`/records/${id}`);
+  } catch (e) {
+    console.error('deleteRecord error:', e.message);
   }
 };
 
-// Добавить тестовые данные
-export const insertSampleData = async () => {
+// ─── VIN Cache (AsyncStorage) ────────────────────────────────────────────────
+
+export const getCache = async (key) => {
   try {
-    const result = await db.execute('SELECT COUNT(*) as count FROM records');
-    if (result.rows[0].count === 0) {
-      const sampleData = [
-        ['Замена масла', 15200, '2025-10-01'],
-        ['Замена фильтра', 15800, '2025-11-15'],
-        ['Шиномонтаж', 16300, '2025-12-05'],
-      ];
-      
-      for (const [workType, mileage, date] of sampleData) {
-        await db.execute(
-          'INSERT INTO records (workType, mileage, date) VALUES (?, ?, ?)',
-          [workType, mileage, date]
-        );
-      }
-    }
-  } catch (error) {
-    console.error('Error inserting sample data:', error);
+    return await AsyncStorage.getItem(`cache_${key}`);
+  } catch {
+    return null;
   }
 };
+
+export const setCache = async (key, value) => {
+  try {
+    await AsyncStorage.setItem(`cache_${key}`, value);
+  } catch { /* ignore */ }
+};
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Строит поля для передачи фото через JSON (base64).
+ * Это надёжнее FormData/multipart на Android (нет зависимости от content:// URI).
+ */
+function buildImagePayload(imageFile) {
+  if (!imageFile?.base64) return {};
+  return {
+    imageBase64: imageFile.base64,
+    imageMime:   imageFile.type     || 'image/jpeg',
+    imageName:   imageFile.fileName || `photo_${Date.now()}.jpg`,
+  };
+}
+
+function normalizeRecord(record) {
+  return {
+    ...record,
+    date: normalizeDate(record?.date),
+  };
+}
+
+function normalizeDate(value) {
+  if (!value) return '';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}

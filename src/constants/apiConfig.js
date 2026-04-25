@@ -1,3 +1,8 @@
+// Бэкенд (Express + MySQL + ImageKit)
+// Android emulator (AVD): 10.0.2.2 указывает на localhost ПК.
+// Для реального девайса укажи IP ПК в локальной сети.
+export const BACKEND_URL = 'http://10.0.2.2:3000';
+
 // NHTSA API - не требует ключа, бесплатный, данные по VIN
 export const NHTSA_API_URL = 'https://vpic.nhtsa.dot.gov/api/vehicles';
 

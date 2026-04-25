@@ -1,26 +1,40 @@
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
-import { SafeAreaView, StatusBar } from 'react-native';
+import { StatusBar } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider, useTheme } from './src/utils/theme';
-import { initDatabase, insertSampleData } from './src/database/database';
+import { initDatabase, getRecords } from './src/database/database';
 import './src/utils/i18n';
 import { LogBox } from 'react-native';
+import {
+  createNotificationChannel,
+  requestNotificationPermission,
+  rescheduleAll,
+  areNotificationsEnabled,
+} from './src/services/notificationService';
 
 const AppContent = () => {
   const { theme, isDarkMode } = useTheme();
 
   useEffect(() => {
-    const setupDatabase = async () => {
+    const setup = async () => {
       try {
-        await initDatabase();
-        await insertSampleData();
+        await initDatabase(); // health-check бэкенда
+
+        // Настройка уведомлений
+        await createNotificationChannel();
+        const enabled = await areNotificationsEnabled();
+        if (enabled) {
+          await requestNotificationPermission();
+          const records = await getRecords();
+          await rescheduleAll(records);
+        }
       } catch (error) {
-        console.error('Database setup error:', error);
+        console.error('Setup error:', error);
       }
     };
-    
-    setupDatabase();
+
+    setup();
   }, []);
   useEffect(() => {
     LogBox.ignoreAllLogs(true); // Игнорировать все предупреждения
